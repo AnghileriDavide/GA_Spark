@@ -7,6 +7,7 @@ __pycache__/
 *.so
 
 # Distribution / packaging
+start_docker.sh
 .Python
 env/
 build/
