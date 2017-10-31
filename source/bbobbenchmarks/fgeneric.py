@@ -197,7 +197,7 @@ class LoggingFunction( object ):
             else:
                 tmp = str( self.funId )
             res.append( 'funcId = %s' % tmp )
-            for i in self._fun_kwargs.iteritems():
+            for i in self._fun_kwargs.items():
                 if isinstance( i[1], str ):
                     tmp = "'%s'" % i[1]
                 else:
@@ -223,10 +223,7 @@ class LoggingFunction( object ):
             try:
                 os.makedirs( filepath )
             except OSError as e:
-                if e.err == e.errno.EEXIST:
-                    pass
-                else:
-                    print e.errno, e.strerror
+                print(e)
             f = open( datafile, 'a' )
             f.write( '%% function evaluation | noise-free fitness - Fopt'
                     ' (%13.12e) | best noise-free fitness - Fopt | measured '
@@ -359,13 +356,10 @@ class LoggingFunction( object ):
         try:
             os.makedirs( datapath )
         except AttributeError:
-            print >> sys.stderr, 'Input argument datapath is an invalid datapath.'
+            print(sys.stderr, 'Input argument datapath is an invalid datapath.')
             raise
         except OSError as e:
-            if e.err == e.errno.EEXIST:
-                pass
-            else:
-                print e.errno, e.strerror
+            print(e)
         self._datapath = datapath
 
     datapath = property( _getdatapath, _setdatapath )
@@ -562,9 +556,9 @@ class LoggingFunction( object ):
     fileprefix = property( _getfileprefix, _setfileprefix )
 
 if __name__ == "__main__":
-    print '  only one doctest implemented'
+    print('  only one doctest implemented')
     # NotImplementedError('no doctests implemented')
     import doctest
     doctest.testmod() # run all doctests in this module
-    print '  done'
+    print('  done')
 
