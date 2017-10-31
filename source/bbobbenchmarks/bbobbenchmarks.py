@@ -440,7 +440,7 @@ class BBOBFunction(AbstractTestFunction):
         self.dim = None
         self.lastshape = None
         self.param = param
-        for i, v in kwargs.iteritems():
+        for i, v in kwargs.items():
             setattr(self, i, v)
         self._xopt = None
 
