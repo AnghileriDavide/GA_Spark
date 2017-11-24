@@ -38,58 +38,60 @@ csv_loader <- function(data) {
 
 reached_solution <- function(data, variable) {
   # Labs for the plot
+  color = "Function"
   xlab = paste(variable, " values")
   ylab = "Percentage of solutions found"
   title = paste("Percentage of solutions found with different values of ", variable)
   
   # Plotting for each value of CR or F
   n_instances <- max(data[,"Instance"])
-  filter_data <- data[data[,"Function"] == 6,]
-  grouped_data <- aggregate(Stop.Reason ~ filter_data[,variable], filter_data, sum)
+  grouped_data <- aggregate(Stop.Reason ~ data[,1] + data[,variable], data, sum)
   
   bar = ggplot(grouped_data, 
-               aes(x = as.character(grouped_data[,1]), y = grouped_data[,2] / n_instances,
-                   group = 1, color = "red"))
-  #bar = bar + geom_bar(stat = "identity", fill = "red")
+               aes(x = as.character(grouped_data[,2]),
+                   y = grouped_data[,3] / n_instances, 
+                   group = as.character(grouped_data[,1]), 
+                   color = as.character(grouped_data[,1])))
   bar = bar + geom_line() + geom_point()
   bar = bar + ylim(0, 1.1) + theme_light()
-  bar = bar + geom_text_repel(aes(label = grouped_data[,2] / n_instances), nudge_y = 0.05)
-  bar + labs(title = title, x = xlab, y = ylab) + guides(color = F)
+  bar + labs(title = title, x = xlab, y = ylab, color = color)
 }
 
 target_gap <- function(data, variable) {
   # Getting the gap and calculating the CI
-  filter_data <- data[data[,"Function"] == 6,]
-  filter_data$gap <- 
-    with(filter_data, abs(filter_data[,c("Score")] - filter_data[,c("Target")]))
-  mci = filter_data %>% group_by(as.character(filter_data[,variable])) %>% summarise(
-    N=n(),
-    avg = mean(gap), 
-    s = sd(gap),
-    error = qt(0.975, N-1) * s / sqrt(N),
-    lci = avg - error,
-    uci = avg + error
-  )
+  data$gap <- with(data, abs(data[,c("Score")] - data[,c("Target")]))
+  mci = data %>% 
+    group_by(data[,variable], data[,1]) %>% 
+    summarise(
+      N=n(),
+      avg = mean(gap), 
+      s = sd(gap),
+      error = qt(0.975, N-1) * s / sqrt(N),
+      lci = avg - error,
+      uci = avg + error
+    )
   
   # Plotting the information
+  print(mci)
   mci_limits <- aes(ymax = mci$uci, ymin = mci$lci)
   mci_plot = ggplot(mci, aes(
-    x = unique(as.character(filter_data[,variable])), 
+    x = mci[,1], 
     y = avg,
-    color = "red"
+    group = mci[,2],
+    color = mci[,2]
   ))
   mci_plot = mci_plot + geom_point(position = position_dodge(width=0.4))
   mci_plot = mci_plot + geom_errorbar(
     mci_limits, 
-    position = position_dodge(width = 0.4),
+    position = position_dodge(width = 5),
     width = 0.4
   )
   mci_plot = mci_plot + labs(
     title = paste("95% Confidence Interval for values of ", variable),
     x = paste(variable, " Values"), 
-    y = "Gap between Target and Score"
-  ) 
-  mci_plot = mci_plot + guides(color = F) + theme_light()
+    y = "Gap between Target and Score",
+    color = "Function"
+  ) + theme_light()
   nudge_y = if(variable == "CR") 0 else 0.7
   mci_plot + geom_text_repel(force = T, nudge_y = nudge_y, nudge_x = 0.7,
     aes(label = formatC(avg, format = "e", digits =0))) 
@@ -99,79 +101,79 @@ avg_time <- function(data, variable) {
   # Labs for the plot
   xlab = paste(variable, " values")
   ylab = "Average execution time (s)"
+  color = "Function"
   title = 
     paste("Average execution time (s) when the solution was found for", variable, "values")
   
   # Plotting for each value of CR or F
-  filter_fun <- data[data[,"Function"] == 6,]
-  filter_data <- filter_fun[filter_fun[,"Stop.Reason"] == 1,]
-  grouped_data <- aggregate(Global.Time ~ filter_data[,variable], filter_data, mean)
+  filter_data <- data[data[,"Stop.Reason"] == 1,]
+  grouped_data <- aggregate(
+    Global.Time ~ filter_data[,1] + filter_data[,variable], filter_data, mean)
   
   bar = ggplot(grouped_data, 
-               aes(x = as.character(grouped_data[,1]),
-                   y = grouped_data[,2], group = 1, color = "red"))
+               aes(x = as.character(grouped_data[,2]),
+                   y = grouped_data[,3], 
+                   group = as.character(grouped_data[,1]), 
+                   color = as.character(grouped_data[,1])))
   bar = bar + geom_line() + geom_point() 
   bar = bar + theme_light()
-  bar = bar + geom_text_repel(
-    aes(label = format(round(grouped_data[,2], 2),nsmall = 2)), nudge_x = 0.1)
-  bar + labs(title = title, x = xlab, y = ylab) + guides(color = F)
+  bar + labs(title = title, x = xlab, y = ylab, color = color)
+}
+
+class_histogram <- function(data, x,  title, xlab, ylab, ylimit = nrow(data)) {
+  plot = ggplot(data, aes(x = x, fill = x)) + geom_bar() + ylim(0, ylimit)
+  plot = plot + geom_text(stat = 'count', aes(label = ..count..), vjust = -1)
+  plot + labs(title = title, x = xlab, y = ylab) + guides(fill = F)
 }
 ```
 
 ```{r csv-loader}
 # Loading results from outputs
-cr_test = csv_loader("../source/outputs/CR-test.csv")
+cr_test = csv_loader("../source/outputs/CR-test-3_1-local150-max5000.csv")
 f_test = csv_loader("../source/outputs/F-test.csv")
+f_test.1 = csv_loader("../source/outputs/F-test-3_1-local150-max5000.csv")
+bin_exp = csv_loader("../source/outputs/Binomial-Exponential.csv")
 ```
-
-# Introduction
-
-First of all we want to premise that this is only a preliminary analysis of some of the results we got since now to improve our capabilities on elaborating and presenting our data and results, a more detailed and significative analysis will be included in the final report.
-
-Since we are not going to collect any data and our experiment is an exploratory study based on the evaluation of the parameter for a differential evolution algorithm we will not do any preprocessing analysis. Also an exhaustive and well detailed description of the benchmark we are going to use (BBOB 2015) can be found here [@coco].
-
-# Results
-
-Our evaluations are done on different instances of 25 predefined functions in the BBOB benchmark, the functions are different in term of shape, complexity and number of local optimum. Different instances of the same functions are just a random translation of the function in the D-dimensional space where it is defined, and allow us to have multiple running of the same function with different global optimum.
 
 ## Analysis of the mutation factor F
 
-```{r timeF, fig.height = 2.9, fig.cap = "Average execution time with different values of F"}
-avg_time(f_test, "F")
+```{r timeF, fig.height = 5, fig.cap = "Average execution time with different values of F"}
+avg_time(f_test.1, "F")
 ```
 
-Figure 1 shows for different values of the parameter F the average execution time to find a solution for a specific optimization problem. Is possible to see that large values of F, meaning that at each mutation the chromosomes change more, affect the execution time more or less linearly. This is reasonable and explainable by the fact that when you are near the optimum, if you continue to do large modifications, it can oscillate around the optimum and the time to reach it increases.
-
-```{r reachedF, fig.height = 2.9, fig.cap = "Percentage of solutions found with different values of F"}
-reached_solution(f_test, "F")
+```{r reachedF, fig.height = 5, fig.cap = "Percentage of solutions found with different values of F"}
+reached_solution(f_test.1, "F")
 ```
-
-Figure 2 shows for different values of the parameter F the percentage (# functions we found a solution / # total functions) of functions our algorithm found a solution. For this analysis we stopped the algorithm when it founds a solution (with a margin of 10^-8) or it reached 5000 evaluations. From this graph we can see that only values between 0.3 and 1 allows the algorithm to find a solution and for values between 0.5 and 0.9 there is no difference on the capacity of the algorithm to find a solution or not.
-
-```{r gapF, fig.height = 2.9, fig.cap = "95% CI for finding the solution with different values of F"}
-target_gap(f_test, "F")
-```
-
-Figure 3 shows how varying the parameter F impacts on the solution found within a maximum of 5000 evaluations. Is possible to see that for values of F between 0.4 and 1.5 the algorithm is able to find the global optimum, while for the value 0.1 the solution is really variable and can be really far from the optimum, and finally for the remaining values the algorithm found a solution that is close to the optimum but not exactly it.
 
 ## Analysis of the crossover factor CR
 
-```{r reachedCR, fig.height = 2.9, fig.cap = "Percentage of solutions found with different values of  F"}
+```{r reachedCR, fig.height = 5, fig.cap = "Percentage of solutions found with different values of  F"}
 reached_solution(cr_test, "CR")
 ```
 
-Figure 4 shows the same analysis as Figure 2 but related to the CR parameter. For time constraint this analysis is done only over 6 of the 25 available functions and is possible to see that values of CR greater than 0.4 the algorithm is able to find most of the solutions in a reasonable time.
-
-```{r gapCR, fig.height = 2.9, fig.cap = "95% CI for finding the solution with different values of CR"}
-target_gap(cr_test, "CR")
-```
-
-Figure 5 shows the same analysis of Figure 3 but related to CR parameter and similar conclusions can be easily derived from the graph.
-
-```{r timeCR, fig.height = 2.9, fig.cap = "Average execution time with different values of CR"}
+```{r timeCR, fig.height = 5, fig.cap = "Average execution time with different values of CR"}
 avg_time(cr_test, "CR")
 ```
 
-Figure 6 shows how the parameter CR impact on the execution time and we can deduce from the plot that there is no a clear difference between different values of CR and the difference can be due to others factors. More analysis of this relation need to be done.
+```{r fig.height = 5}
+title = "Number of solutions found per Crossover Strategy"
+xlab = "Crossover Strategy"
+ylab = "Number of solutions found"
 
-# References
+filtered <- bin_exp[bin_exp$Stop.Reason != 0,]
+plot = ggplot(filtered, aes(x = CRSt, y = ..count.., group = CRSt, fill = CRSt)) 
+plot = plot + geom_bar() + ylim(0, 70) + theme_light()
+#plot = plot + geom_text(stat = 'count', aes(label = ..count..), vjust = -1)
+plot + labs(title = title, x = xlab, y = ylab) + guides(fill = F)
+```
+
+```{r fig.height = 5}
+title = "Average execution time (s) on solutions found per Crossover Strategy"
+xlab = "Crossover Strategy"
+ylab = "Average execution time (s)"
+
+filtered <- bin_exp[bin_exp$Stop.Reason != 0,]
+grouped_data <- aggregate(Global.Time ~ filtered[,"CRSt"], filtered, mean)
+plot = ggplot(grouped_data ) + geom_bar(aes(x = grouped_data[,1], y = grouped_data[,2], group = grouped_data[,1], fill = grouped_data[,1]), stat = "identity") + ylim(0, 30)
+plot + labs(title = title, x = xlab, y = ylab) + guides(fill = F) + theme_light()
+```
